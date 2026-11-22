@@ -17,19 +17,16 @@ sys.path.append("ares-sc2")
 
 import yaml
 
-from bot.main import MyBot
+from bot.molniya import Molniya
 from ladder import run_ladder_game
 
 plt = platform.system()
-# change if non default setup / linux
-# if having issues with this, modify `map_list` below manually
+
 if plt == "Windows":
-    MAPS_PATH: str = "C:\\Program Files (x86)\\StarCraft II\\Maps"
+    MAPS_PATH: str = "D:\\Games\\StarCraft II\\Maps"
 elif plt == "Darwin":
     MAPS_PATH: str = "/Applications/StarCraft II/Maps"
 elif plt == "Linux":
-    # path would look a bit like this on linux after installing
-    # SC2 via lutris
     MAPS_PATH: str = (
         "~/<username>/Games/battlenet/drive_c/Program Files (x86)/StarCraft II/Maps"
     )
@@ -49,7 +46,7 @@ def main():
 
     __user_config_location__: str = path.abspath(".")
     user_config_path: str = path.join(__user_config_location__, CONFIG_FILE)
-    # attempt to get race and bot name from config file if they exist
+
     if path.isfile(user_config_path):
         with open(user_config_path) as config_file:
             config: dict = yaml.safe_load(config_file)
@@ -58,15 +55,13 @@ def main():
             if MY_BOT_RACE in config:
                 race = Race[config[MY_BOT_RACE].title()]
 
-    bot1 = Bot(race, MyBot(), bot_name)
+    bot1 = Bot(race, Molniya(), bot_name, fullscreen=True)
 
     if "--LadderServer" in sys.argv:
-        # Ladder game started by LadderManager
         print("Starting ladder game...")
         result, opponentid = run_ladder_game(bot1)
         print(result, " against opponent ", opponentid)
     else:
-        # Local game
         map_list: List[str] = [
             p.name.replace(f".{MAP_FILE_EXT}", "")
             for p in Path(MAPS_PATH).glob(f"*.{MAP_FILE_EXT}")
@@ -82,7 +77,6 @@ def main():
                 f"Tip: If you're using linux, MAPS_PATH will definitely need updating\n"
             )
 
-            # see if user has any recent ladder maps
             map_list: List[str] = [
                 "PylonAIE_v4",
                 "PersephoneAIE_v4",
@@ -92,18 +86,27 @@ def main():
                 "UltraloveAIE_v2",
             ]
 
-        random_race = random.choice([Race.Zerg, Race.Terran, Race.Protoss])
         print("Starting local game...")
-        run_game(
-            maps.get(random.choice(map_list)),
-            [
-                bot1,
-                Computer(random_race, Difficulty.CheatVision, ai_build=AIBuild.Macro),
-            ],
-            realtime=False,
-        )
+        try:
+            run_game(
+                maps.get(random.choice(map_list)),
+                [
+                    bot1,
+                    Computer(Race.Protoss, Difficulty.CheatMoney, ai_build=AIBuild.Macro),
+                ],
+                realtime=True,
+            )
+        except ValueError as e:
+            if "4294967296" in str(e):
+                print("Игра была прервана вручную (известный баг python-sc2). Выход.")
+            else:
+                raise
+        except TypeError as e:
+            if "'NoneType' object is not subscriptable" in str(e):
+                print("Игра была прервана вручную (известный баг python-sc2). Выход.")
+            else:
+                raise
 
 
-# Start game
 if __name__ == "__main__":
     main()
